@@ -1,0 +1,30 @@
+
+version: 2
+
+models:
+  - name: order_detail
+    description: "Details of each order made through Shopify"
+    columns:
+      - name: order_id
+        description: "Primary keys: order_id and order_line_id"
+        data_tests:
+          - unique
+          - not_null
+      - name: order_line_id
+        description: "Primary keys: order_id and order_line_id"
+        data_tests:
+          - unique
+          - not_null
+      - name: transaction_id
+        description: "transaction/payment ID"
+      - name: product_id
+      - name: variant_id
+      - name: customer_id
+      - name: price
+      - name: quantity
+      - name: transaction_status
+      - name: order_create_date
+      - name: transaction_time
+      - name: product_type
+      - name: product_name
+      - name: variant_name

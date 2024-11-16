@@ -1,0 +1,31 @@
+name: 'sl_shopify_solution'
+version: '1.0.0'
+
+profile: 'sl_shopify_solution'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+
+models:
+  sl_shopify_solution:
+    +schema: mart
+    +materialized: table
+
+seeds:
+  sl_shopify_solution:
+    +schema: dim
+    +quote_columns: false
+    +enabled: true
+    +file_format:
+      delimiter: ","
+      skip_header: 1
+
