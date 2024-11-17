@@ -22,6 +22,7 @@ models:
       - name: customer_id
       - name: price
       - name: quantity
+      - name: revenue
       - name: transaction_status
       - name: order_create_date
       - name: transaction_time

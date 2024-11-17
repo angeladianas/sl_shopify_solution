@@ -1,0 +1,25 @@
+
+version: 2
+
+models:
+  - name: dim_product
+    description: "Details of products and variants"
+    columns:
+      - name: product_id
+        description: "Primary keys: product_id and variant_id"
+        data_tests:
+          - unique
+          - not_null
+      - name: variant_id
+        description: "Primary keys: product_id and variant_id"
+        data_tests:
+          - unique
+          - not_null
+      - name: product_type
+      - name: product_name
+      - name: variant_name
+      - name: price
+      - name: product_create_time
+      - name: variant_create_time
+      - name: variant_update_time
+      - name: variant_ingested_time

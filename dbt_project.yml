@@ -17,8 +17,12 @@ clean-targets:
 
 models:
   sl_shopify_solution:
-    +schema: mart
-    +materialized: table
+    dim:
+      +schema: dim
+      +materialized: table
+    mart:
+      +schema: mart
+      +materialized: table
 
 seeds:
   sl_shopify_solution:

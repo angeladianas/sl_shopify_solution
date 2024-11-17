@@ -1,5 +1,9 @@
 
-{{ config(materialized='table') }}
+{{
+    config(
+        materialized='table'
+    )
+}}
 
 WITH latest_tr AS (
     SELECT 
@@ -10,7 +14,7 @@ WITH latest_tr AS (
             *,
             ROW_NUMBER() OVER(PARTITION BY order_id ORDER BY created_at DESC) AS row_num
         FROM 
-            shopify_dim.transaction
+            {{ ref('transaction') }}
     )
     WHERE 
         row_num = 1
@@ -20,21 +24,22 @@ SELECT
     main.id AS order_id,
     ol.id AS order_line_id,
     tr.id AS transaction_id,
-    va.product_id AS product_id,
+    pr.product_id,
     ol.variant_id,
     main.customer_id,
     ol.price,
     ol.quantity,
+    ol.price * ol.quantity AS revenue,
     tr.status AS transaction_status,
     main.processed_timestamp AS order_create_time,
     tr.created_at AS transaction_time,
     pr.product_type,
-    pr.title AS product_name,
-    va.title AS variant_name
+    pr.product_name,
+    pr.variant_name
 FROM 
-    shopify_dim.orders AS main
+    {{ ref('orders') }} AS main
 LEFT JOIN 
-    shopify_dim.order_lines AS ol
+    {{ ref('order_lines') }} AS ol
 ON 
     main.id = ol.order_id 
 LEFT JOIN 
@@ -42,10 +47,6 @@ LEFT JOIN
 ON 
     main.id = tr.order_id 
 LEFT JOIN 
-    shopify_dim.product_variant AS va 
+    {{ ref('dim_product') }} AS pr 
 ON 
-    ol.variant_id = va.id 
-LEFT JOIN 
-    shopify_dim.product AS pr
-ON 
-    va.product_id = pr.id
+    ol.variant_id = pr.variant_id 
