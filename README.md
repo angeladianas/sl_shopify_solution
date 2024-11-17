@@ -1,22 +1,45 @@
 This is a case study to build a data warehouse for a client that uses Shopify as their commerce platform. 
 
 # Repo Structure
+    .
+    ├── models                  # Models 
+        ├── dim                 # Contains dimensional table
+        ├── mart                # Contains mart/fact table
+    ├── seeds                   # Raw CSV files 
+    ├── tests                   # To put test here (for future work)
+    ├── dbt_project.yml         # Contains the dbt config
+    └── README.md
 
 # Database
 The data are in csv files (under `/seeds` folder). 
+The data have been loaded to Snowflake (db name: `sl_shopify`)
+| Schema | Description | 
+| --- | --- |
+| shopify_dim | Contains dimensional tables, including raw tables provided previously as csv files | 
+| shopify_mart | Contains a table to be used for analytics and reporting purposes | 
 
 # Section 1: Data Modelling and ELT
 ## 1. Entity Relationship Diagram
 This is the STAR schema proposed to store the data:
+| Table Name | Type | Schema | Directory |
+| --- | ---| --- | ---|
+| `orders` | dim | shopify_dim | `/seeds` |
+| `order_lines` | dim | shopify_dim | `/seeds` |
+| `transaction` | dim | shopify_dim | `/seeds` |
+| `product` | dim | shopify_dim | `/seeds` |
+| `product_variant` | dim | shopify_dim | `/seeds` |
+| `dim_product` | dim | shopify_dim | `/models/dim` |
+| `order_detail` | fact | shopify_mart | `/models/mart` |
+
 ```mermaid
 erDiagram
     order_detail {
-        varchar order_id
-        varchar order_line_id
-        varchar transaction_id
-        varchar product_id
-        varchar variant_id
-        varchar customer_id
+        varchar order_id PK
+        varchar order_line_id PK
+        varchar transaction_id FK
+        varchar product_id FK
+        varchar variant_id FK
+        varchar customer_id FK
         int revenue
         int quantity
         varchar transaction_status
@@ -27,26 +50,26 @@ erDiagram
         varchar variant_name
     }
     orders {
-        varchar name
+        varchar id PK
         timestamp processed_timestamp
         varchar cutomer_id
     }
     order_lines {
-        varchar id
+        varchar id PK
         int quantity
-        varchar variant_id
+        varchar variant_id FK
         int price
-        varchar order_id
+        varchar order_id FK
     }
     transaction {
-        varchar id
+        varchar id PK
         varchar status
-        varchar order_id
+        varchar order_id FK
         timestamp created_at
     }
     product_variant {
-        varchar id
-        varchar product_id
+        varchar id PK
+        varchar product_id FK
         int price
         varchar title
         timestamp created_at
@@ -54,14 +77,14 @@ erDiagram
         timestamp ingested_at
     }
     product {
-        varchar id
+        varchar id PK
         varchar title
         varchar product_type
         timestamp created_at
     }
     dim_product {
-        varchar product_id
-        varchar variant_id
+        varchar product_id PK
+        varchar variant_id PK
         varchar product_type
         varchar product_name
         varchar variant_name
@@ -97,11 +120,11 @@ flowchart LR
 ```
 
 ## 3. Data Marts and Reports
-In order to get information regarding "Revenue, Item Sales, Variant Price Changes, By Product, By Customer, By Date, if payment has been made and the time it occurred", the first step is to create a table called order_detail. This is a fact table with a structure depicted in the Entity Relationship Diagram above. 
+In order to get information regarding "Revenue, Item Sales, Variant Price Changes, By Product, By Customer, By Date, if payment has been made and the time it occurred", the first step is to create a table called `order_detail`. This is a fact table with a structure depicted in the Entity Relationship Diagram above. You can find the SQL logic to build this table under `/models/mart/order_detail.sql`.
 
 This table contains the most detailed view of each order line as it incorporates information across different staging/dim tables. It'll be easy to form many metrics based on this table through filtering, aggregation, and other SQL operations. 
 
-The details of the order_detail table is as follows:
+The details of the `order_detail` table is as follows:
 | Column Name | Description | Possible Use Cases |
 | --- | --- | --- |
 | `order_id` | Order ID | To count how many orders have been made |
@@ -113,7 +136,7 @@ The details of the order_detail table is as follows:
 | `price` | The amount of the corresponding line item / variant | To analyze price changes |
 | `quantity` | The quantity of the purchase | |
 | `revenue` | Total amount generated from this transaction (price * quantity) | By aggregating this column, you may derive total revenue/sales |
-| `transaction_status` | The status of the latest transaction made | To identify whether a payment has been made or not, filter by transaction_status = 'success' | 
+| `transaction_status` | The status of the latest transaction made | To identify whether a payment has been made or not, filter by `transaction_status = 'success'` | 
 | `order_create_time` | Order create time | You may use this to get the base date for your aggregation formula |
 | `transaction_time` | Transaction create time| To identify when the payment occurred |
 | `product_type` | The product's type | To get the type of the product |
@@ -183,9 +206,7 @@ Table design for lightweight data ingestion to Tableau:
 | `product_name` | The product name of the SKUs that have stopped selling |
 
 # Section 2: Validation and Communication
-Please outline any testing steps you would take or any unit tests you would add. We adhere to the philosophy that there is no such thing as “too much testing” and are interest ed in understanding your logical testing thought process to ensure data quality.
-
-To ensure data quality, we need to create data quality rules on the table:
+To ensure data quality, we can create data quality rules on the table:
 1. consistency check
     - run the new SQL query and load it to a test/dev schema. 
     - select the necessary columns from test/dev and production/prod tables. 
@@ -199,7 +220,7 @@ To ensure data quality, we need to create data quality rules on the table:
         order_line_sku,
         expected_days_to_deliver
     FROM 
-        shopify_prod.the_table_name
+        prod
     WHERE 
         date ...date_filter...
     EXCEPT 
@@ -208,7 +229,7 @@ To ensure data quality, we need to create data quality rules on the table:
         order_line_sku,
         expected_days_to_deliver
     FROM 
-        shopify_dev.the_table_name
+        dev
     WHERE 
         date ...date_filter...
     )
@@ -219,7 +240,7 @@ To ensure data quality, we need to create data quality rules on the table:
         prod_sub_dev
     ```
 2. validity check
-    - this is to check whether the change impacted the columns that are supposed to be non-Null, such as order_id. 
+    - this is to check whether the change impacted the columns that are not supposed to be NULL, such as order_id. 
 3. uniqueness check 
     - this is to ensure that the change didn't create any duplicates for unique keys. 
 4. custom check 
@@ -228,9 +249,11 @@ To ensure data quality, we need to create data quality rules on the table:
     - Example:
     ```SQL
     SELECT 
-        COUNT(DISTINCT fulfilment_allocated_3pl) = 1
+        COUNT(DISTINCT fulfilment_allocated_3pl) > 1
     FROM 
-        shopify_dev.the_table_name
+        dev
+    WHERE 
+        date >= DATE('2024-06-01')
     ```
 5. completeness
     - to ensure that the change does not lead to data loss. 
@@ -265,11 +288,11 @@ flowchart LR
 ## Explanation
 - With incremental data from REST API, we can extract and clean the data with Python. 
 - We also need to add a column which indicates the ingestion timing. 
-- The result can then be saved as parquet/ORC/Avro and stored in AWS S3.
+- The result can then be saved as parquet/ORC/Avro and stored in AWS S3. The choice of data file format shall be based on the business requirements and it's recommended to not choose csv to be more scalable and compatible with distributed computing systems. Parquet/ORC/Avro also offers better compression system, thus leading to less storage consumed in AWS S3. 
 - If the business requires full data as snapshot, we need to ingest the data in incremental mode (append) instead of overwriting existing data in Snowflake. This means that we will need to do a full data dump. 
 - For further analysis and reporting, we can use dbt to transform the data and store it in Snowflake. 
 - The data ingestion workflow can be automated by using Airflow. 
-- Logging needs to be put in place in every step of the ingestion. The information of the log and the job can then be stored as metadata. 
+- Logging needs to be put in place in every step of the ingestion process. The information from the log and the job can then be stored as metadata. 
 - The metadata can help in monitoring job completion and providing points of optimization, such as which jobs take too much time and resources. 
 
 
@@ -291,5 +314,16 @@ Tech stack that will incur costs:
 - We also need to implement alerts depending on our needs (Failure, Success, and SLA). Every tasks need a failure alert and every important tasks need an SLA alert.
 - We also need to keep up to date with Shopify's API changes, such as if there are new fields and status changes. 
 
+# Others
+## Limitations
+Under limited time and resource constraint, the models created under `/models` folder may not be optimized (run time, resources used, and table types). 
+
+## Future work
+Given the limitations, some improvements may be considered to be done in the future:
+- Creating a proper incremental tables.
+- Create unit tests and automated data quality check. 
+- Set up CI/CD.
+
+Thank you for reading this Github repo. Have a great day. 
 ___
 Created by Diana Suwanto
